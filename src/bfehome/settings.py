@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # 'django_celery_beat',
+    # 'django_celery_results',
 ]
 
 MIDDLEWARE = [
@@ -72,13 +75,36 @@ WSGI_APPLICATION = 'bfehome.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
+"""
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+"""
+
+DB_SCHEME = config("DB_SCHEME")
+DB_USER = config("DB_USER")
+DB_PASSWORD = config("DB_PASSWORD")
+DB_HOST = config("DB_HOST")
+DB_PORT = config("DB_PORT")
+DB_NAME = config("DB_NAME")
+DB_OPTIONS = config("DB_OPTIONS", default="")
+# D_U = "postgres://tsdbadmin:v2fpjg3mj4afxbq2@eo0g11wo7n.jliapt6jcf.tsdb.cloud.timescale.com:34250/?sslmode=require"
+DATABASE_URL = f"{DB_SCHEME}://{DB_USER}:{DB_PASSWORD}.{DB_HOST}:{DB_PORT}/{DB_NAME}{DB_OPTIONS}"
+# DATABASE_URL = config("DATABASE_URL", default="", cast=str)
+
+if DATABASE_URL != "":
+    import dj_database_url
+    
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=300,
+            engine='timescale.db.backends.postgresql',
+        )
+    }
 
 
 # Password validation
@@ -121,3 +147,15 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REDIS_URL = config("REDIS_URL", default='redis://localhost:6379')
+
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers.DatabaseScheduler"
+
+
+CELERY_BROKER_CONNECTION_RETRY = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_REDIS_BACKEND_USE_SSL = False
+CELERY_BROKER_USE_SSL = False
